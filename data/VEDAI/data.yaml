@@ -1,0 +1,10 @@
+# 红外在下，可见在上不能改
+train:
+  - ./VEDAI512_converted/infrared/train/images
+val:
+  - ./VEDAI512_converted/infrared/test/images
+# number of classes
+nc: 8
+
+# class names
+names: ['car', 'pickup', 'camping','truck', 'other', 'tractor', 'boat', 'van']
