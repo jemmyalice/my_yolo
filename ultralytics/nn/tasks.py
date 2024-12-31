@@ -291,7 +291,10 @@ class BaseModel(nn.Module):
         """
         self = super()._apply(fn)
         m = self.model[-1]  # Detect()
-        if isinstance(m, Detect):  # includes all Detect subclasses like Segment, Pose, OBB, WorldDetect
+#—————————————start
+        if isinstance(m, (Detect, ASFFHead)):  # includes all Detect subclasses like Segment, Pose, OBB, WorldDetect
+#—————————————end
+        # if isinstance(m, Detect):  # includes all Detect subclasses like Segment, Pose, OBB, WorldDetect
             m.stride = fn(m.stride)
             m.anchors = fn(m.anchors)
             m.strides = fn(m.strides)
@@ -1187,6 +1190,17 @@ def parse_model(d, ch, verbose=True):  # model_dict, input_channels(3)
         elif m is nn.BatchNorm2d:
             args = [ch[f]]
         # 如果模块是Concat，那么它会计算输出通道数。
+#————————————start
+        # elif m in {SCAM}:
+        #     c2 = ch[f]
+        #     args = [c2]
+        # elif m is FFM_Concat2:
+        #     c2 = sum(ch[x] for x in f)
+        #     args = [args[0], c2 // 2, c2 // 2]
+        # elif m is FFM_Concat3:
+        #     c2 = sum(ch[x] for x in f)
+        #     args = [args[0], c2 // 4, c2 // 2, c2 // 4]
+#————————————end
         elif m is Concat:
             if -2 in f:
                 # print('yes')
@@ -1195,8 +1209,21 @@ def parse_model(d, ch, verbose=True):  # model_dict, input_channels(3)
                 c1 = ch[-1]
             else:
                 c2 = sum(ch[x] for x in f) # f中会有要连接的层和-1,ch取出对应通道数进行一个通道融合
+#———————————————————start
+        # elif m is ASFF2:
+        #     c1, c2 = [ch[f[0]], ch[f[1]]], args[0]
+        #     c2 = make_divisible(min(c2, max_channels) * width, 8)
+        #     args = [c1, c2, *args[1:]]
+        # elif m is ASFF3:
+        #     c1, c2 = [ch[f[0]], ch[f[1]], ch[f[2]]], args[0]
+        #     c2 = make_divisible(min(c2, max_channels) * width, 8)
+        #     args = [c1, c2, *args[1:]]
+#——————————————————end
         # 如果模块是以下目标 即最后一层任务，那么它会调整参数列表
-        elif m in {Detect, WorldDetect, Segment, Pose, OBB, ImagePoolingAttn, v10Detect}:
+# —————————————start
+        elif m in {Detect, WorldDetect, Segment, Pose, OBB, ImagePoolingAttn, v10Detect, ASFFHead}:
+# —————————————end
+#         elif m in {Detect, WorldDetect, Segment, Pose, OBB, ImagePoolingAttn, v10Detect}:
             # 列表通常包含了需要融合的层的通道信息。
             # 确保每个模块可以访问需要融合的多个层的通道数（如特征图的维度），以便在之后的特征融合中可以正确处理这些通道信息。
             args.append([ch[x] for x in f]) # 把16 19 22层的输出通道数加入args
@@ -1296,6 +1323,11 @@ def guess_model_task(model):
             return "pose"
         if m == "obb":
             return "obb"
+#——————————————start
+        else:
+            return 'detect'
+
+#——————————————end
 
     # Guess from model cfg
     if isinstance(model, dict):
@@ -1326,7 +1358,10 @@ def guess_model_task(model):
                 return "pose"
             elif isinstance(m, OBB):
                 return "obb"
-            elif isinstance(m, (Detect, WorldDetect, v10Detect)):
+#——————————————start
+            elif isinstance(m, (Detect, WorldDetect, v10Detect, ASFFHead)):
+#——————————————end
+            # elif isinstance(m, (Detect, WorldDetect, v10Detect)):
                 return "detect"
 
     # Guess from model filename
