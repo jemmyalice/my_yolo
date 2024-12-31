@@ -292,7 +292,7 @@ class BaseModel(nn.Module):
         self = super()._apply(fn)
         m = self.model[-1]  # Detect()
 #—————————————start
-        if isinstance(m, (Detect, ASFFHead)):  # includes all Detect subclasses like Segment, Pose, OBB, WorldDetect
+        if isinstance(m, (Detect, ASFFHead, AFPN4Head, AFPNHead)):  # includes all Detect subclasses like Segment, Pose, OBB, WorldDetect
 #—————————————end
         # if isinstance(m, Detect):  # includes all Detect subclasses like Segment, Pose, OBB, WorldDetect
             m.stride = fn(m.stride)
@@ -1221,7 +1221,7 @@ def parse_model(d, ch, verbose=True):  # model_dict, input_channels(3)
 #——————————————————end
         # 如果模块是以下目标 即最后一层任务，那么它会调整参数列表
 # —————————————start
-        elif m in {Detect, WorldDetect, Segment, Pose, OBB, ImagePoolingAttn, v10Detect, ASFFHead}:
+        elif m in {Detect, WorldDetect, Segment, Pose, OBB, ImagePoolingAttn, v10Detect, ASFFHead, AFPN4Head, AFPNHead}:
 # —————————————end
 #         elif m in {Detect, WorldDetect, Segment, Pose, OBB, ImagePoolingAttn, v10Detect}:
             # 列表通常包含了需要融合的层的通道信息。
@@ -1359,7 +1359,7 @@ def guess_model_task(model):
             elif isinstance(m, OBB):
                 return "obb"
 #——————————————start
-            elif isinstance(m, (Detect, WorldDetect, v10Detect, ASFFHead)):
+            elif isinstance(m, (Detect, WorldDetect, v10Detect, ASFFHead, AFPN4Head, AFPNHead)):
 #——————————————end
             # elif isinstance(m, (Detect, WorldDetect, v10Detect)):
                 return "detect"
