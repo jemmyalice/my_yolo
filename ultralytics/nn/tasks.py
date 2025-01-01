@@ -1326,7 +1326,6 @@ def guess_model_task(model):
 #——————————————start
         else:
             return 'detect'
-
 #——————————————end
 
     # Guess from model cfg
