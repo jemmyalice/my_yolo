@@ -29,4 +29,4 @@ backbone:
 # YOLO11n head
 head:
   # 64 可以更换为 128 256
-  - [[16, 19, 22], 1, AFPNHead, [nc, 128]] # Detect(P3, P4, P5)
+  - [[16, 19, 22], 1, AFPN4Head, [nc, 64]] # Detect(P3, P4, P5)
