@@ -24,7 +24,7 @@ if __name__=='__main__':
 
     # 22_2 是去18基础去norm 29
     # 22 是22——2基础上加tff 29
-    model = YOLO(r'F:\yolo_change_try\ultralytics-main\ultralytics\cfg\models\11\Fusion13_1212_yolo11s.yaml')
+    model = YOLO(r'F:\yolo_change_try\ultralytics-main\ultralytics\cfg\models\11\Fusion17_1212_yolo11s.yaml')
     # model = YOLO(r'F:\ultralytics-main\ultralytics\cfg\models\11\SKbase11_fusion_yolo11s.yaml')
     # model = YOLO(r'F:\yolo_change_try\ultralytics-main\ultralytics\cfg\models\11\Ayolo11s.yaml')
 

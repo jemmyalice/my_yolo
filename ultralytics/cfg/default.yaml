@@ -3,7 +3,7 @@
 
 task: detect # (str) YOLO任务，例如 detect, segment, classify, pose, obb
 mode: train # (str) YOLO模式，例如 train, val, predict, export, track, benchmark
-mpdiou: False
+mpdiou: True
 
 # 训练设置 -------------------------------------------------------------------------------------------------------
 model: # (str, 可选) 模型文件路径，例如 yolov8n.pt, yolov8n.yaml
