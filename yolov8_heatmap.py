@@ -151,10 +151,10 @@ class yolov11_heatmap:
 
 def get_params():
     params = {
-        'weight': r'F:\downloads\chorme\best (2).pt',  # 训练出来的权重文件
-        'cfg': r'F:\yolo_change_try\ultralytics-main\ultralytics\cfg\models\11\Fusion13_1212_yolo11s.yaml',  # 训练权重对应的yaml配置文件
-        # 'device': 'cuda:0',
-        'device': 'cpu',
+        'weight': r'/kaggle/input/0000-0/best (2).pt',  # 训练出来的权重文件
+        'cfg': r'./ultralytics/cfg/models/11/Fusion17_1212_yolo11s.yaml',  # 训练权重对应的yaml配置文件
+        'device': 'cuda:0',
+        # 'device': 'cpu',
         'method': 'GradCAM',  # GradCAMPlusPlus, GradCAM, XGradCAM , 使用的热力图库文件不同的效果不一样可以多尝试
         'layer': 'model.model[9]',  # 想要检测的对应层
         'backward_type': 'all',  # class, box, all
