@@ -11,7 +11,6 @@ from tqdm import trange
 from PIL import Image
 from ultralytics.nn.tasks import DetectionModel as Model
 from ultralytics.utils.torch_utils import intersect_dicts
-# from ultralytics.yolo.data.augment import LetterBox
 from ultralytics.utils.ops import xywh2xyxy
 from pytorch_grad_cam import GradCAMPlusPlus, GradCAM, XGradCAM
 from pytorch_grad_cam.utils.image import show_cam_on_image
@@ -51,7 +50,7 @@ def letterbox(im, new_shape=(640, 640), color=(114, 114, 114), auto=True, scaleF
     return im, ratio, (dw, dh)
 
 
-class yolov8_heatmap:
+class yolov11_heatmap:
     def __init__(self, weight, cfg, device, method, layer, backward_type, conf_threshold, ratio):
         device = torch.device(device)
         ckpt = torch.load(weight)
@@ -66,7 +65,7 @@ class yolov8_heatmap:
         target_layers = [eval(layer)]
         method = eval(method)
 
-        colors = np.random.uniform(0, 255, size=(len(model_names), 3)).astype(np.int_)
+        colors = np.random.uniform(0, 255, size=(len(model_names), 3)).astype(np.int32)
         self.__dict__.update(locals())
 
     def post_process(self, result):
@@ -79,8 +78,8 @@ class yolov8_heatmap:
     def draw_detections(self, box, color, name, img):
         xmin, ymin, xmax, ymax = list(map(int, list(box)))
         cv2.rectangle(img, (xmin, ymin), (xmax, ymax), tuple(int(x) for x in color), 2)
-        cv2.putText(img, str(name), (xmin, ymin - 5), cv2.FONT_HERSHEY_SIMPLEX, 0.8, tuple(int(x) for x in color), 2,
-            lineType=cv2.LINE_AA)
+        cv2.putText(img, str(name), (xmin, ymin - 5), cv2.FONT_HERSHEY_SIMPLEX, 0.8, tuple(
+            int(x) for x in color), 2, lineType=cv2.LINE_AA)
         return img
 
     def __call__(self, img_path, save_path):
@@ -130,8 +129,7 @@ class yolov8_heatmap:
                 gradients = grads.gradients[0] + grads.gradients[1] + grads.gradients[2] + grads.gradients[3] + \
                             grads.gradients[4]
             b, k, u, v = gradients.size()
-            weights = self.method.get_cam_weights(self.method, None, None, None, activations,
-                gradients.detach().numpy())
+            weights = self.method.get_cam_weights(self.method, None, None, None, activations, gradients.detach().numpy())
             weights = weights.reshape((b, k, 1, 1))
             saliency_map = np.sum(weights * activations, axis=1)
             saliency_map = np.squeeze(np.maximum(saliency_map, 0))
@@ -143,28 +141,29 @@ class yolov8_heatmap:
 
             # add heatmap and box to image
             cam_image = show_cam_on_image(img.copy(), saliency_map, use_rgb=True)
-            cam_image = self.draw_detections(post_boxes[i], self.colors[int(post_result[i, :].argmax())],
-                f'{self.model_names[int(post_result[i, :].argmax())]} '
-                f'{float(post_result[i].max()):.2f}',
-                cam_image)  ## 不用预测框则注释 ##
+            "不想在图片中绘画出边界框和置信度，注释下面的一行代码即可"
+            cam_image = self.draw_detections(
+                post_boxes[i], self.colors[int(post_result[i,
+                                               :].argmax())], f'{self.model_names[int(post_result[i, :].argmax())]} {float(post_result[i].max()):.2f}', cam_image)
             cam_image = Image.fromarray(cam_image)
             cam_image.save(f'{save_path}/{i}.png')
 
 
 def get_params():
     params = {
-        'weight': r'F:\ultralytics-main\yolo11s.pt',
-        'cfg': r'F:\ultralytics-main\ultralytics\cfg\models\11\yolo11.yaml',
+        'weight': r'F:\downloads\chorme\best (2).pt',  # 训练出来的权重文件
+        'cfg': r'F:\yolo_change_try\ultralytics-main\ultralytics\cfg\models\11\Fusion13_1212_yolo11s.yaml',  # 训练权重对应的yaml配置文件
+        # 'device': 'cuda:0',
         'device': 'cpu',
-        'method': 'GradCAM',  # GradCAMPlusPlus, GradCAM, XGradCAM
-        'layer': 'model.model[10]',
+        'method': 'GradCAM',  # GradCAMPlusPlus, GradCAM, XGradCAM , 使用的热力图库文件不同的效果不一样可以多尝试
+        'layer': 'model.model[9]',  # 想要检测的对应层
         'backward_type': 'all',  # class, box, all
-        'conf_threshold': 0.6,  # 0.6
+        'conf_threshold': 0.01,  # 0.6  # 置信度阈值，有的时候你的进度条到一半就停止了就是因为没有高于此值的了
         'ratio': 0.02  # 0.02-0.1
     }
     return params
 
 
 if __name__=='__main__':
-    model = yolov8_heatmap(**get_params())
-    model(r'ultralytics-main\ultralytics\assets\bus.jpg', 'result')
+    model = yolov11_heatmap(**get_params())
+    model(r'ultralytics/assets/bus.jpg', 'result')  # 第一个是检测的文件, 第二个是保存的路径
