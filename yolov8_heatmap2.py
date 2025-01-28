@@ -1,3 +1,4 @@
+# 最后的用于自己热力图版本
 import warnings
 
 warnings.filterwarnings('ignore')
@@ -42,7 +43,7 @@ def letterbox(im, new_shape=(640, 640), color=(114, 114, 114), auto=True, scaleF
     dw /= 2  # divide padding into 2 sides
     dh /= 2
 
-    if shape[::-1]!=new_unpad:  # resize
+    if shape[::-1] != new_unpad:  # resize
         im = cv2.resize(im, new_unpad, interpolation=cv2.INTER_LINEAR)
     top, bottom = int(round(dh - 0.1)), int(round(dh + 0.1))
     left, right = int(round(dw - 0.1)), int(round(dw + 0.1))
@@ -120,9 +121,9 @@ class yolov8_target(torch.nn.Module):
         for i in trange(int(post_result.size(0) * self.ratio)):
             if float(post_result[i].max()) < self.conf:
                 break
-            if self.ouput_type=='class' or self.ouput_type=='all':
+            if self.ouput_type == 'class' or self.ouput_type == 'all':
                 result.append(post_result[i].max())
-            elif self.ouput_type=='box' or self.ouput_type=='all':
+            elif self.ouput_type == 'box' or self.ouput_type == 'all':
                 for j in range(4):
                     result.append(pre_post_boxes[i, j])
         return sum(result)
@@ -196,12 +197,12 @@ class yolov8_heatmap:
             for data in pred:
                 data = data.cpu().detach().numpy()
                 cam_image = self.draw_detections(data[:4], self.colors[int(data[
-                                                                           4:].argmax())], f'{self.model_names[int(data[4:].argmax())]} {float(data[4:].max()):.2f}', cam_image)
+                                                                              4:].argmax())], f'{self.model_names[int(data[4:].argmax())]} {float(data[4:].max()):.2f}', cam_image)
 
         cam_image = Image.fromarray(cam_image)
         cam_image.save(save_path)
 
-    def __call__(self, img_path, save_path, grad_name):
+    def __call__(self, img_path_x, img_path_y, save_path, grad_name):
         # remove dir if exist
         # if os.path.exists(save_path):
         #     shutil.rmtree(save_path)
@@ -209,13 +210,14 @@ class yolov8_heatmap:
         if not os.path.exists(save_path):
             os.makedirs(save_path, exist_ok=True)
 
-        if os.path.isdir(img_path):
-            for img_path_ in os.listdir(img_path):
+        # Only process images in img_path_x (x folder)
+        if os.path.isdir(img_path_x):
+            for img_path_ in os.listdir(img_path_x):
                 name = img_path_.rsplit('.')[0]
                 end_name = img_path_.rsplit('.')[-1]
-                self.process(f'{img_path}/{img_path_}', f'{save_path}/{name}_{grad_name}.{end_name}')
+                self.process(f'{img_path_x}/{img_path_}', f'{save_path}/{name}_{grad_name}.{end_name}')
         else:
-            self.process(img_path, f'{save_path}/result_{grad_name}.png')
+            self.process(img_path_x, f'{save_path}/result_{grad_name}.png')
 
 
 def get_params():
@@ -248,9 +250,10 @@ def get_params():
         yield params
 
 
-if __name__=='__main__':
+if __name__ == '__main__':
     for each in get_params():
         model = yolov8_heatmap(**each)
-        # model第一个参数：单张图片路径或者图片文件夹路径; 第二个参数：保存路径; 第三个参数：绘制热力图方法
-        # model(r'images/00052.jpg', 'result', each['method'])
-        model(r'F:\yolo_change_try\ultralytics-main\data\VEDAI\VEDAI512_converted\visible\test\images', 'result', each['method'])
+        # model第一个参数：x文件夹路径; 第二个参数：y文件夹路径; 第三个参数：保存路径; 第四个参数：绘制热力图方法
+        model(r'F:\yolo_change_try\ultralytics-main\data\VEDAI\VEDAI512_converted\visible\test\images',
+              r'F:\yolo_change_try\ultralytics-main\data\VEDAI\VEDAI512_converted\infrared\test\images',
+              'result', each['method'])
