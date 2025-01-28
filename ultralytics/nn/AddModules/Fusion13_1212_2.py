@@ -136,8 +136,8 @@ class MF_13_2(nn.Module):  # stereo attention block
         self.bottleneck1 = nn.Conv2d(channels, 16, 3, 1, 1, bias=False)
         self.bottleneck2 = nn.Conv2d(channels, 48, 3, 1, 1, bias=False)
         self.se = SE_Block(64, 16)
-        self.se_r = ECAAttention(3)
-        self.se_i = ECAAttention(3)
+        self.se_r = ECAAttention()
+        self.se_i = ECAAttention()
 
         # self.se_i = SE_Block(1,1)
 
