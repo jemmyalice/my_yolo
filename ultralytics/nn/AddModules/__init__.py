@@ -37,6 +37,8 @@ from .Fusion10_1212 import *
 from .Fusion11_1212 import *
 from .Fusion12_1212 import *
 from .Fusion13_1212 import *
+from .Fusion13_1212_1 import *
+from .Fusion13_1212_2 import *
 from .Fusion14_1212 import *
 from .Fusion15_1212 import *
 from .Fusion16_1212 import *
