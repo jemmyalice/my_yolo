@@ -44,10 +44,10 @@ from ultralytics.nn.AddModules import *
 #
 # print(out.shape)
 start = time.time()
-rgb_input = torch.randn(2, 3, 32, 32) # RGB输入 (Batch, Channels, Height, Width)
-ir_input = torch.randn(2, 3, 32, 32) # IR输入 (Batch, Channels, Height, Width)
+rgb_input = torch.randn(2, 3, 640, 640) # RGB输入 (Batch, Channels, Height, Width)
+ir_input = torch.randn(2, 3, 640, 640) # IR输入 (Batch, Channels, Height, Width)
 
-add = MF_25(3)
+add = GMF_13(3)
 out = add(rgb_input,ir_input)
 end = time.time()
 
