@@ -6,7 +6,7 @@ import torch.nn.functional as F
 from collections import OrderedDict
 # 没有dwconv也没有cdm，需要直接取消注释就行了,这个CDM是eca版本的
 # 3eca
-__all__ = ["GMF_13"]
+__all__ = ["FME"]
 # ds 换为conv
 def dsconv_3x3(in_channel, out_channel):
     return nn.Sequential(
@@ -77,12 +77,10 @@ class ECAAttention(nn.Module):
         return x * y.expand_as(x)  # 权重对输入的通道进行重新加权: (B,C,H,W) * (B,C,1,1) = (B,C,H,W)
 
 class ECAAttention1(nn.Module):
-    def __init__(self, in_channels=3, kernel_size=3):
+    def __init__(self, ch_in=64, kernel_size=3):
         super().__init__()
-        self.convd2 = nn.Conv2d(in_channels, 1, kernel_size=1)
-        self.softmax = nn.Softmax(dim=1)
-        # self.gap = nn.AdaptiveAvgPool2d(1)
-        self.conv = nn.Conv1d(1, 1, kernel_size=kernel_size, padding=(kernel_size - 1) // 2)
+        self.gap = nn.AdaptiveAvgPool2d(1)
+        self.fc = nn.Linear(ch_in, ch_in, bias=False)
         self.sigmoid = nn.Sigmoid()
 
     def init_weights(self):
@@ -100,21 +98,15 @@ class ECAAttention1(nn.Module):
                     init.constant_(m.bias, 0)
 
     def forward(self, x):
-        y = self.convd2(x)
-        y = torch.flatten(y, 1)
-        y = y.unsqueeze(0)
-        y = self.softmax(y)
-        y = torch.matmul(y.permute(1, 0, 2), x.flatten(2).transpose(1, 2))
-        # y = self.gap(x)  # 在空间方向执行全局平均池化: (B,C,H,W)-->(B,C,1,1)
-        # y = y.squeeze(-1).permute(0, 2, 1)  # 将通道描述符去掉一维,便于在通道上执行卷积操作:(B,C,1,1)-->(B,C,1)-->(B,1,C)
-        y = self.conv(y)  # 在通道维度上执行1D卷积操作,建模局部通道之间的相关性: (B,1,C)-->(B,1,C)
+        b, c, _, _ = x.size()
+        y = self.gap(x).view(b, c)  # 在空间方向执行全局平均池化: (B,C,H,W)-->(B,C,1,1)
+        y = self.fc(y).view(b, c, 1, 1)  # 在通道维度上执行1D卷积操作,建模局部通道之间的相关性: (B,1,C)-->(B,1,C)
         y = self.sigmoid(y)  # 生成权重表示: (B,1,C)
-        y = y.permute(0, 2, 1).unsqueeze(-1)  # 重塑shape: (B,1,C)-->(B,C,1)-->(B,C,1,1)
         return x * y.expand_as(x)  # 权重对输入的通道进行重新加权: (B,C,H,W) * (B,C,1,1) = (B,C,H,W)
 
-class GMF_13(nn.Module):  # stereo attention block
+class FME(nn.Module):  # stereo attention block
     def __init__(self, channels):
-        super(GMF_13, self).__init__()
+        super(FME, self).__init__()
         self.catconvA = nn.Conv2d(channels * 2, channels, 3, 1, 1, bias=True)
         self.catconvB = nn.Conv2d(channels * 2, channels, 3, 1, 1, bias=True)
         self.mask_map_r = nn.Conv2d(channels, 1, 1, 1, 0, bias=True)
@@ -124,9 +116,10 @@ class GMF_13(nn.Module):  # stereo attention block
         # self.bottleneck1 = nn.Conv2d(1, 16, 3, 1, 1, bias=False)
         self.bottleneck1 = nn.Conv2d(channels, 16, 3, 1, 1, bias=False)
         self.bottleneck2 = nn.Conv2d(channels, 48, 3, 1, 1, bias=False)
-        self.se = SE_Block(64, 16)
-        self.se_r = ECAAttention1(3)
-        self.se_i = ECAAttention1(3)
+        # self.se = SE_Block(64, 16)
+        self.se = ECAAttention1(64, 16)
+        self.se_r = ECAAttention()
+        self.se_i = ECAAttention()
 
         # self.se_i = SE_Block(1,1)
 
