@@ -115,8 +115,8 @@ class ECAAttention1(nn.Module):
         y2 = self.gap11(y2).view(b, c, 1, 1)
 
         # y = y + 0.4*y1 + 0.6*y2
-        y = y + 0.15*y1 + 0.85*y2
-        # y = y + 0.3*y1 + 0.7*y2
+        # y = y + 0.15*y1 + 0.85*y2
+        y = y + 0.3*y1 + 0.7*y2
         # y = y + y1 + y2
         y = self.sigmoid(y)  # 生成权重表示: (B,1,C)
 
