@@ -77,13 +77,14 @@ class ECAAttention(nn.Module):
         return x * y.expand_as(x)  # 权重对输入的通道进行重新加权: (B,C,H,W) * (B,C,1,1) = (B,C,H,W)
 
 class ECAAttention1(nn.Module):
-    def __init__(self, in_channels=3, kernel_size=3):
+    def __init__(self, ch_in, kernel_size = 3, kernel_size1 = 1):
         super().__init__()
-        self.convd2 = nn.Conv2d(in_channels, 1, kernel_size=1)
-        self.softmax = nn.Softmax(dim=1)
-        # self.gap = nn.AdaptiveAvgPool2d(1)
-        self.conv = nn.Conv1d(1, 1, kernel_size=kernel_size, padding=(kernel_size - 1) // 2)
+        self.gap = nn.AdaptiveAvgPool2d(1)
+        self.conv1d = nn.Conv1d(1, 1, kernel_size=kernel_size, padding=(kernel_size - 1) // 2)
         self.sigmoid = nn.Sigmoid()
+
+        self.conv1 = nn.Conv2d(ch_in, ch_in, kernel_size=kernel_size1, padding=(kernel_size1 - 1) // 2)
+        self.gap11 = nn.AdaptiveAvgPool2d(1)
 
     def init_weights(self):
         for m in self.modules():
@@ -98,19 +99,23 @@ class ECAAttention1(nn.Module):
                 init.normal_(m.weight, std=0.001)
                 if m.bias is not None:
                     init.constant_(m.bias, 0)
-
+    # 输出只相加了
     def forward(self, x):
-        y = self.convd2(x)
-        y = torch.flatten(y, 1)
-        y = y.unsqueeze(0)
-        y = self.softmax(y)
-        y = torch.matmul(y.permute(1, 0, 2), x.flatten(2).transpose(1, 2))
-        # y = self.gap(x)  # 在空间方向执行全局平均池化: (B,C,H,W)-->(B,C,1,1)
-        # y = y.squeeze(-1).permute(0, 2, 1)  # 将通道描述符去掉一维,便于在通道上执行卷积操作:(B,C,1,1)-->(B,C,1)-->(B,1,C)
-        y = self.conv(y)  # 在通道维度上执行1D卷积操作,建模局部通道之间的相关性: (B,1,C)-->(B,1,C)
+        b, c, _, _ = x.size()
+        y = self.gap(x) # 在空间方向执行全局平均池化: (B,C,H,W)-->(B,C,1,1)
+        y = y.squeeze(-1).permute(0, 2, 1)  # 将通道描述符去掉一维,便于在通道上执行卷积操作:(B,C,1,1)-->(B,C,1)-->(B,1,C)
+        y = self.conv1d(y)
+        y = y.permute(0, 2, 1).unsqueeze(-1)
+        y2 = self.conv1(x)  # 在通道维度上执行1D卷积操作,建模局部通道之间的相关性: (B,1,C)-->(B,1,C)
+        y2 = self.gap11(y2).view(b, c, 1, 1)
+
+        # y = y + 0.4*y1 + 0.6*y2
+        y = y + y2
+        # y = y + 0.3*y1 + 0.7*y2
+        # y = y + y1 + y2
         y = self.sigmoid(y)  # 生成权重表示: (B,1,C)
-        y = y.permute(0, 2, 1).unsqueeze(-1)  # 重塑shape: (B,1,C)-->(B,C,1)-->(B,C,1,1)
-        return x * y.expand_as(x)  # 权重对输入的通道进行重新加权: (B,C,H,W) * (B,C,1,1) = (B,C,H,W)
+
+        return x * y.expand_as(x) # 权重对输入的通道进行重新加权: (B,C,H,W) * (B,C,1,1) = (B,C,H,W)
 
 class GMF_13(nn.Module):  # stereo attention block
     def __init__(self, channels):
@@ -155,18 +160,18 @@ class GMF_13(nn.Module):  # stereo attention block
         # x_right = x_right_ori * 0.5
 
         #########start
-        # x_diff = x_left - x_right.expend_as(x_left)
+        x_diff = x_left - x_right
+        x_diff1 = x_right - x_left
+        x_diffA = self.catconvA((torch.cat([x_diff1, x_left], dim=1)))
+        x_diffB = self.catconvB((torch.cat([x_diff, x_right], dim=1)))
+        x_mask_left = torch.mul(self.mask_map_r(x_diffA).repeat(1, 3, 1, 1), x_left)
+        x_mask_right = torch.mul(self.mask_map_i(x_diffB).repeat(1, 3, 1, 1), x_right)
+        #########end
         # x_diff = x_right - x_left
         # x_diffA = self.catconvA((torch.cat([x_diff, x_left], dim=1)))
         # x_diffB = self.catconvB((torch.cat([x_diff, x_right], dim=1)))
         # x_mask_left = torch.mul(self.mask_map_r(x_diffA).repeat(1, 3, 1, 1), x_left)
         # x_mask_right = torch.mul(self.mask_map_i(x_diffB), x_right)
-        #########end
-        x_diff = x_right - x_left
-        x_diffA = self.catconvA((torch.cat([x_diff, x_left], dim=1)))
-        x_diffB = self.catconvB((torch.cat([x_diff, x_right], dim=1)))
-        x_mask_left = torch.mul(self.mask_map_r(x_diffA).repeat(1, 3, 1, 1), x_left)
-        x_mask_right = torch.mul(self.mask_map_i(x_diffB), x_right)
         # x_mask_left = torch.mul(self.mask_map_r(x_left), x_left)
         # x_mask_right = torch.mul(self.mask_map_i(x_right), x_right)
 
