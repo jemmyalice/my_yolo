@@ -6,7 +6,7 @@ import torch.nn.functional as F
 from collections import OrderedDict
 # 没有dwconv也没有cdm，需要直接取消注释就行了,这个CDM是eca版本的
 # 3eca
-__all__ = ["G1MF_13"]
+__all__ = ["MF_22_3"]
 # ds 换为conv
 def dsconv_3x3(in_channel, out_channel):
     return nn.Sequential(
@@ -110,16 +110,16 @@ class ECAAttention1(nn.Module):
         y2 = self.gap11(y2).view(b, c, 1, 1)
 
         # y = y + 0.4*y1 + 0.6*y2
-        y = y + y2
+        y = 0.5*y + 0.5*y2
         # y = y + 0.3*y1 + 0.7*y2
         # y = y + y1 + y2
         y = self.sigmoid(y)  # 生成权重表示: (B,1,C)
 
         return x * y.expand_as(x) # 权重对输入的通道进行重新加权: (B,C,H,W) * (B,C,1,1) = (B,C,H,W)
 
-class G1MF_13(nn.Module):  # stereo attention block
+class MF_22_3(nn.Module):  # stereo attention block
     def __init__(self, channels):
-        super(G1MF_13, self).__init__()
+        super(MF_22_3, self).__init__()
         self.catconvA = nn.Conv2d(channels * 2, channels, 3, 1, 1, bias=True)
         self.catconvB = nn.Conv2d(channels * 2, channels, 3, 1, 1, bias=True)
         self.mask_map_r = nn.Conv2d(channels, 1, 1, 1, 0, bias=True)
