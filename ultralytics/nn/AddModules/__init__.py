@@ -64,3 +64,7 @@ from .GFusion13_1212 import *
 from .G1Fusion13_1212 import *
 from .FE_Fusion13_1212 import *
 from .FE1_Fusion13_1212 import *
+
+from .I3DFF_MPD_1212 import *
+from .I3TCA3_MPD_1212 import *
+from .I3TCA2_MPD_1212 import *
