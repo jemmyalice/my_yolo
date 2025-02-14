@@ -86,6 +86,8 @@ class ECAAttention1(nn.Module):
         self.conv1 = nn.Conv2d(ch_in, ch_in, kernel_size=kernel_size1, padding=(kernel_size1 - 1) // 2)
         self.gap11 = nn.AdaptiveAvgPool2d(1)
 
+        self.eca1 = ECAAttention()
+
     def init_weights(self):
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
@@ -107,15 +109,11 @@ class ECAAttention1(nn.Module):
         y = self.conv1d(y)
         y = y.permute(0, 2, 1).unsqueeze(-1)
         y2 = self.conv1(x)  # 在通道维度上执行1D卷积操作,建模局部通道之间的相关性: (B,1,C)-->(B,1,C)
-        y2 = self.gap11(y2).view(b, c, 1, 1)
-
-        # y = y + 0.4*y1 + 0.6*y2
-        y = y + y2
-        # y = y + 0.3*y1 + 0.7*y2
-        # y = y + y1 + y2
+        y2 = self.gap11(y2)
+        y2 = self.eca1(y2)
         y = self.sigmoid(y)  # 生成权重表示: (B,1,C)
 
-        return x * y.expand_as(x) # 权重对输入的通道进行重新加权: (B,C,H,W) * (B,C,1,1) = (B,C,H,W)
+        return x * y.expand_as(x) + y2 # 权重对输入的通道进行重新加权: (B,C,H,W) * (B,C,1,1) = (B,C,H,W)
 
 class TCA1(nn.Module):  # stereo attention block
     def __init__(self, channels):
@@ -130,8 +128,8 @@ class TCA1(nn.Module):  # stereo attention block
         self.bottleneck1 = nn.Conv2d(channels, 16, 3, 1, 1, bias=False)
         self.bottleneck2 = nn.Conv2d(channels, 48, 3, 1, 1, bias=False)
         self.se = SE_Block(64, 16)
-        self.se_r = ECAAttention()
-        self.se_i = ECAAttention()
+        self.se_r = ECAAttention1(3)
+        self.se_i = ECAAttention1(3)
 
         # self.se_i = SE_Block(1,1)
 
