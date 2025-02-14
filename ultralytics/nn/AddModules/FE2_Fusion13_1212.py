@@ -6,7 +6,7 @@ import torch.nn.functional as F
 from collections import OrderedDict
 # 没有dwconv也没有cdm，需要直接取消注释就行了,这个CDM是eca版本的
 # 3eca
-__all__ = ["FME1"]
+__all__ = ["FME2"]
 # ds 换为conv
 def dsconv_3x3(in_channel, out_channel):
     return nn.Sequential(
@@ -128,24 +128,20 @@ class ECAAttention1(nn.Module):
         y1 = self.sigmoid(y1)  # 生成权重表示: (B,1,C)
         y2 = self.sigmoid(y2)  # 生成权重表示: (B,1,C)
 
-        # y = y + y1 + y2
-        # y = y + 0.15 * y1 + 0.85 * y2
-        y = y + 0.5 * y1 + 0.5 * y2
+        return torch.concat([x * y.expand_as(x), x * y1.expand_as(x), x * y2.expand_as(x)], dim=1) # 权重对输入的通道进行重新加权: (B,C,H,W) * (B,C,1,1) = (B,C,H,W)
 
-        return x * y.expand_as(x) # 权重对输入的通道进行重新加权: (B,C,H,W) * (B,C,1,1) = (B,C,H,W)
-
-class FME1(nn.Module):  # stereo attention block
+class FME2(nn.Module):  # stereo attention block
     def __init__(self, channels):
-        super(FME1, self).__init__()
-        self.catconvA = nn.Conv2d(channels * 2, channels, 3, 1, 1, bias=True)
-        self.catconvB = nn.Conv2d(channels * 2, channels, 3, 1, 1, bias=True)
+        super(FME2, self).__init__()
+        self.catconvA = nn.Conv2d(channels * 6, channels, 3, 1, 1, bias=True)
+        self.catconvB = nn.Conv2d(channels * 6, channels, 3, 1, 1, bias=True)
         self.mask_map_r = nn.Conv2d(channels, 1, 1, 1, 0, bias=True)
         # self.mask_map_i = nn.Conv2d(1, 1, 1, 1, 0, bias=True)
         self.mask_map_i = nn.Conv2d(channels, 1, 1, 1, 0, bias=True)
         self.softmax = nn.Softmax(-1)
         # self.bottleneck1 = nn.Conv2d(1, 16, 3, 1, 1, bias=False)
-        self.bottleneck1 = nn.Conv2d(channels, 16, 3, 1, 1, bias=False)
-        self.bottleneck2 = nn.Conv2d(channels, 48, 3, 1, 1, bias=False)
+        self.bottleneck1 = nn.Conv2d(channels * 3, 16, 3, 1, 1, bias=False)
+        self.bottleneck2 = nn.Conv2d(channels * 3, 48, 3, 1, 1, bias=False)
         self.se = SE_Block(64, 16)
         self.se_r = ECAAttention1(3)
         self.se_i = ECAAttention1(3)
@@ -181,8 +177,8 @@ class FME1(nn.Module):  # stereo attention block
         x_diff1 = x_right - x_left
         x_diffA = self.catconvA((torch.cat([x_diff1, x_left], dim=1)))
         x_diffB = self.catconvB((torch.cat([x_diff, x_right], dim=1)))
-        x_mask_left = torch.mul(self.mask_map_r(x_diffA).repeat(1, 3, 1, 1), x_left)
-        x_mask_right = torch.mul(self.mask_map_i(x_diffB).repeat(1, 3, 1, 1), x_right)
+        x_mask_left = torch.mul(self.mask_map_r(x_diffA).repeat(1, 9, 1, 1), x_left)
+        x_mask_right = torch.mul(self.mask_map_i(x_diffB).repeat(1, 9, 1, 1), x_right)
         #########end
         # x_diff = x_right - x_left
         # x_diffA = self.catconvA((torch.cat([x_diff, x_left], dim=1)))
@@ -192,8 +188,8 @@ class FME1(nn.Module):  # stereo attention block
         # x_mask_left = torch.mul(self.mask_map_r(x_left), x_left)
         # x_mask_right = torch.mul(self.mask_map_i(x_right), x_right)
 
-        out_IR = self.bottleneck1(x_mask_right + x_right_ori)
-        out_RGB = self.bottleneck2(x_mask_left + x_left_ori)  # RGB
+        out_IR = self.bottleneck1(x_mask_right + x_right_ori.repeat(1, 3, 1, 1))
+        out_RGB = self.bottleneck2(x_mask_left + x_left_ori.repeat(1, 3, 1, 1))  # RGB
 
         #########start
         # out_RGB, out_IR = self.cmd(out_RGB, out_IR)
